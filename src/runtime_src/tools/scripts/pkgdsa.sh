@@ -34,8 +34,10 @@ opt_sdx="/proj/xbuilds/2018.2_daily_latest/installs/lin64/SDx/2018.2"
 opt_xrt=""
 opt_cl=0
 opt_dev=0
+license_dir=""
 
 dsa_version="5.1"
+
 
 usage()
 {
@@ -48,6 +50,7 @@ usage()
     echo "[-dsadir <path>]           Full path to directory with platforms (default: <sdx>/platforms/<dsa>)"
     echo "[-pkgdir <path>]           Full path to direcory used by rpm,dep,xbins (default: /tmp/pkgdsa)"
     echo "[-dev]                     Build development package"
+    echo "[-license <path>]          Include license file(s) from the <path> in the package"
     echo "[-help]                    List this help"
 
     exit 1
@@ -72,6 +75,11 @@ while [ $# -gt 0 ]; do
             opt_dsa=$1
             shift
             ;;
+        -license)
+            shift
+	    license_dir=$1
+	    shift
+	    ;;
         -dsadir)
             shift
             opt_dsadir=$1
@@ -133,8 +141,11 @@ if [ "X${XILINX_XRT}" == "X" ]; then
 fi
 
 # get dsa, version, and revision
-dsa=$(echo ${opt_dsa:0:${#opt_dsa}-4} | tr '_' '-')
-version=$(echo ${opt_dsa:(-3)} | tr '_' '.')
+# Parse the platform into the basic parts
+#    Syntax: <vender>_<board>_<name>_<versionMajor>_<versionMinor>
+set -- `echo $opt_dsa | tr '_' ' '`
+dsa="${1}-${2}-${3}"
+version="${4}.${5}"
 revision=$opt_cl
 
 echo "================================================================"
@@ -418,9 +429,17 @@ EOF
 
     mkdir -p $opt_pkgdir/$dir/opt/xilinx/platforms/$opt_dsa/hw
     mkdir -p $opt_pkgdir/$dir/opt/xilinx/platforms/$opt_dsa/sw
+    if [ "${license_dir}" != "" ] ; then
+	if [ -d ${license_dir} ] ; then
+	  mkdir -p $opt_pkgdir/$dir/opt/xilinx/platforms/$opt_dsa/license
+	  cp -f ${license_dir}/*  $opt_pkgdir/$dir/opt/xilinx/platforms/$opt_dsa/license
+	fi
+    fi
+    
     rsync -avz $opt_dsadir/$opt_dsa.xpfm $opt_pkgdir/$dir/opt/xilinx/platforms/$opt_dsa/
     rsync -avz $opt_dsadir/hw/$opt_dsa.dsa $opt_pkgdir/$dir/opt/xilinx/platforms/$opt_dsa/hw/
     rsync -avz $opt_dsadir/sw/$opt_dsa.spfm $opt_pkgdir/$dir/opt/xilinx/platforms/$opt_dsa/sw/
+    chmod -R +r $opt_pkgdir/$dir/opt/xilinx/platforms/$opt_dsa
     dpkg-deb --build $opt_pkgdir/$dir
 
     echo "================================================================"
@@ -446,9 +465,16 @@ maintainer: soren.soe@xilinx.com
 EOF
 
     mkdir -p $opt_pkgdir/$dir/lib/firmware/xilinx
+    if [ "${license_dir}" != "" ] ; then
+	if [ -d ${license_dir} ] ; then
+	  mkdir -p $opt_pkgdir/$dir/opt/xilinx/platforms/$opt_dsa/license
+	  cp -f ${license_dir}/*  $opt_pkgdir/$dir/opt/xilinx/platforms/$opt_dsa/license
+	fi
+    fi
     rsync -avz $opt_pkgdir/dsabin/firmware/ $opt_pkgdir/$dir/lib/firmware/xilinx
     mkdir -p $opt_pkgdir/$dir/opt/xilinx/dsa/$opt_dsa/test
     rsync -avz ${opt_dsadir}/test/ $opt_pkgdir/$dir/opt/xilinx/dsa/$opt_dsa/test
+    chmod -R +r $opt_pkgdir/$dir/opt/xilinx/dsa/$opt_dsa
     dpkg-deb --build $opt_pkgdir/$dir
 
     echo "================================================================"
@@ -463,9 +489,11 @@ dorpmdev()
 
 cat <<EOF > $opt_pkgdir/$dir/SPECS/$opt_dsa-dev.spec
 
+%define _rpmfilename %%{ARCH}/%%{NAME}-%%{VERSION}-dev.%%{ARCH}.rpm
+
 buildroot:  %{_topdir}
 summary: Xilinx development DSA
-name: $dsa-dev
+name: $dsa
 version: $version
 release: $revision
 license: apache
@@ -570,3 +598,4 @@ if [ $FLAVOR == "ubuntu" ]; then
      dodeb
  fi
 fi
+
