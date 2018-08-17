@@ -37,7 +37,7 @@ opt_dev=0
 license_dir=""
 
 dsa_version="5.1"
-
+build_date=`date +"%a %b %d %Y"`
 
 usage()
 {
@@ -165,7 +165,7 @@ mcsSecondary=""
 fullBitFile=""
 clearBitstreamFile=""
 dsaXmlFile="dsa.xml"
-featureRomTimestamp=""
+featureRomTimestamp="0"
 fwScheduler=""
 fwManagement=""
 vbnv=""
@@ -173,6 +173,8 @@ pci_vendor_id="0x0000"
 pci_device_id="0x0000"
 pci_subsystem_id="0x0000"
 dsabinOutputFile=""
+post_inst_fail_msg="DSA installed successfully. But failed to flash board(s). Please flash board manually with xbutil flash -a all"
+post_inst_msg="DSA installed successfully. Please flash board manually with xbutil flash -a all"
 
 createEntityAttributeArray ()
 {
@@ -390,6 +392,7 @@ dodsabin()
        echo "Warning: Missing Platform VBNV value"
     fi
 
+
     # -- Mode Hardware PR --
     xclbinOpts+=" --kvp mode:hw_pr"
 
@@ -409,6 +412,7 @@ dodsabin()
     ${XILINX_XRT}/bin/xclbincat ${xclbinOpts}
 
     popd >/dev/null
+
 }
 
 dodebdev()
@@ -422,8 +426,8 @@ architecture: amd64
 version: $version-$revision
 priority: optional
 depends: $dsa (>= $version)
-description: Xilinx development DSA
-maintainer: soren.soe@xilinx.com
+description: Xilinx $dsa development DSA. Built on $build_date.
+maintainer: Xilinx Inc
 
 EOF
 
@@ -454,21 +458,28 @@ dodeb()
 cat <<EOF > $opt_pkgdir/$dir/DEBIAN/control
 
 package: $dsa
-architecture: amd64
+architecture: all
 version: $version-$revision
 priority: optional
 depends: xrt (>= $opt_xrt)
-description: Xilinx deployment DSA
+description: Xilinx $dsa deployment DSA. 
  This DSA depends on xrt >= $opt_xrt.
-maintainer: soren.soe@xilinx.com
+maintainer: Xilinx Inc.
 
 EOF
+
+cat <<EOF > $opt_pkgdir/$dir/DEBIAN/postinst
+
+/opt/xilinx/xrt/bin/xbutil flash -f -a ${opt_dsa} -t ${featureRomTimestamp} || echo "${post_inst_fail_msg}"
+
+EOF
+    chmod 755 $opt_pkgdir/$dir/DEBIAN/postinst
 
     mkdir -p $opt_pkgdir/$dir/lib/firmware/xilinx
     if [ "${license_dir}" != "" ] ; then
 	if [ -d ${license_dir} ] ; then
-	  mkdir -p $opt_pkgdir/$dir/opt/xilinx/platforms/$opt_dsa/license
-	  cp -f ${license_dir}/*  $opt_pkgdir/$dir/opt/xilinx/platforms/$opt_dsa/license
+	  mkdir -p $opt_pkgdir/$dir/opt/xilinx/dsa/$opt_dsa/license
+	  cp -f ${license_dir}/*  $opt_pkgdir/$dir/opt/xilinx/dsa/$opt_dsa/license
 	fi
     fi
     rsync -avz $opt_pkgdir/dsabin/firmware/ $opt_pkgdir/$dir/lib/firmware/xilinx
@@ -489,22 +500,29 @@ dorpmdev()
 
 cat <<EOF > $opt_pkgdir/$dir/SPECS/$opt_dsa-dev.spec
 
-%define _rpmfilename %%{ARCH}/%%{NAME}-%%{VERSION}-dev.%%{ARCH}.rpm
+%define _rpmfilename %%{ARCH}/%%{NAME}-%%{VERSION}.%%{ARCH}.rpm
 
 buildroot:  %{_topdir}
-summary: Xilinx development DSA
-name: $dsa
+summary: Xilinx $dsa development DSA
+name: $dsa-dev
 version: $version
 release: $revision
 license: apache
 vendor: Xilinx Inc
 
 requires: $dsa >= $version
+%package devel
+summary:  Xilinx $dsa development DSA. 
+
+%description devel 
+Xilinx $dsa development DSA. 
 
 %description
-Xilinx development DSA.
+Xilinx $dsa development DSA. Built on $build_date.
 
 %prep
+
+%post
 
 %install
 mkdir -p %{buildroot}/opt/xilinx/platforms/$opt_dsa/hw
@@ -512,22 +530,30 @@ mkdir -p %{buildroot}/opt/xilinx/platforms/$opt_dsa/sw
 rsync -avz $opt_dsadir/$opt_dsa.xpfm %{buildroot}/opt/xilinx/platforms/$opt_dsa/
 rsync -avz $opt_dsadir/hw/$opt_dsa.dsa %{buildroot}/opt/xilinx/platforms/$opt_dsa/hw/
 rsync -avz $opt_dsadir/sw/$opt_dsa.spfm %{buildroot}/opt/xilinx/platforms/$opt_dsa/sw/
+if [ "${license_dir}" != "" ] ; then
+  if [ -d ${license_dir} ] ; then
+    mkdir -p %{buildroot}/opt/xilinx/platforms/$opt_dsa/license
+    cp -f ${license_dir}/*  %{buildroot}/opt/xilinx/platforms/$opt_dsa/license/
+  fi
+fi
+
 
 %files
 %defattr(-,root,root,-)
 /opt/xilinx
 
 %changelog
-* Fri May 18 2018 Soren Soe <soren.soe@xilinx.com> - 5.1-1
+* $build_date Xilinx Inc - 5.1-1
   Created by script
 
 EOF
 
     echo "rpmbuild --define '_topdir $opt_pkgdir/$dir' -ba $opt_pkgdir/$dir/SPECS/$opt_dsa-dev.spec"
-    $dir --define '_topdir '"$opt_pkgdir/$dir" -ba $opt_pkgdir/$dir/SPECS/$opt_dsa-dev.spec
-
+    $dir --target=x86_64 --define '_topdir '"$opt_pkgdir/$dir" -ba $opt_pkgdir/$dir/SPECS/$opt_dsa-dev.spec
+    #$dir --target=noarch --define '_topdir '"$opt_pkgdir/$dir" -ba $opt_pkgdir/$dir/SPECS/$opt_dsa-dev.spec
     echo "================================================================"
-    echo "* Please locate rpm for dsa in: $opt_pkgdir/$dir/RPMS/x86_64"
+    echo "* Locate x86_64 rpm for the dsa in: $opt_pkgdir/$dir/RPMS/x86_64"
+    echo "* Locate noarch rpm for the dsa in: $opt_pkgdir/$dir/RPMS/noarch"
     echo "================================================================"
 }
 
@@ -539,7 +565,7 @@ dorpm()
 cat <<EOF > $opt_pkgdir/$dir/SPECS/$opt_dsa.spec
 
 buildroot:  %{_topdir}
-summary: Xilinx deployment DSA
+summary: Xilinx $dsa deployment DSA
 name: $dsa
 version: $version
 release: $revision
@@ -549,32 +575,43 @@ autoreqprov: no
 requires: xrt >= $opt_xrt
 
 %description
-Xilinx deployment DSA.  This DSA depends on xrt >= $opt_xrt.
+Xilinx $dsa deployment DSA. Built on $build_date. This DSA depends on xrt >= $opt_xrt.
 
 %prep
+
+%post
+echo "${post_inst_msg}"
 
 %install
 mkdir -p %{buildroot}/lib/firmware/xilinx
 cp $opt_pkgdir/dsabin/firmware/* %{buildroot}/lib/firmware/xilinx
 mkdir -p %{buildroot}/opt/xilinx/dsa/$opt_dsa/test
 cp ${opt_dsadir}/test/* %{buildroot}/opt/xilinx/dsa/$opt_dsa/test
+if [ "${license_dir}" != "" ] ; then
+  if [ -d ${license_dir} ] ; then
+    mkdir -p %{buildroot}/opt/xilinx/dsa/$opt_dsa/license
+    cp -f ${license_dir}/*  %{buildroot}/opt/xilinx/dsa/$opt_dsa/license/
+  fi
+fi
 
 %files
 %defattr(-,root,root,-)
 /lib/firmware/xilinx
-/opt/xilinx/dsa/$opt_dsa/test
+/opt/xilinx/dsa/$opt_dsa/
+
 
 %changelog
-* Fri May 18 2018 Soren Soe <soren.soe@xilinx.com> - 5.1-1
+* $build_date Xilinx Inc. - 5.1-1
   Created by script
 
 EOF
 
     echo "rpmbuild --define '_topdir $opt_pkgdir/$dir' -ba $opt_pkgdir/$dir/SPECS/$opt_dsa.spec"
     rpmbuild --define '_topdir '"$opt_pkgdir/$dir" -ba $opt_pkgdir/$dir/SPECS/$opt_dsa.spec
-
+    $dir --target=noarch --define '_topdir '"$opt_pkgdir/$dir" -ba $opt_pkgdir/$dir/SPECS/$opt_dsa.spec
     echo "================================================================"
-    echo "* Please locate rpm for dsa in: $opt_pkgdir/$dir/RPMS/x86_64"
+    echo "* Locate x86_64 rpm for the dsa in: $opt_pkgdir/$dir/RPMS/x86_64"
+    echo "* Locate noarch rpm for the dsa in: $opt_pkgdir/$dir/RPMS/noarch"
     echo "================================================================"
 }
 
