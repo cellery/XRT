@@ -46,6 +46,7 @@ RH_LIST=(\
      gcc-c++ \
      gdb \
      git \
+     glibc-static \
      gnuplot \
      gnutls-devel \
      kernel-devel \
@@ -57,6 +58,8 @@ RH_LIST=(\
      libstdc++-static \
      libtiff-devel \
      libuuid-devel \
+     libxml2-devel \
+     libyaml-devel \
      lm_sensors \
      make \
      ncurses-devel \
@@ -97,6 +100,8 @@ UB_LIST=(\
      libpng-dev \
      libprotoc-dev \
      libtiff5-dev \
+     libxml2-dev \
+     libyaml-dev \
      linux-headers-$(uname -r) \
      linux-libc-dev \
      lm-sensors \

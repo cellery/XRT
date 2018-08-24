@@ -1,4 +1,4 @@
-PROJECT(SDAccel)
+PROJECT(XRT)
 CMAKE_MINIMUM_REQUIRED(VERSION 2.8.11)
 
 SET(PROJECT_DESCRIPTION "https://github.com/Xilinx/XRT")
@@ -26,6 +26,14 @@ IF(OPENCL_FOUND)
 ELSE(OPENCL_FOUND)
   MESSAGE(FATAL_ERROR "Looking for OPENCL - not found")
 ENDIF(OPENCL_FOUND)
+
+find_package(Git)
+
+IF(GIT_FOUND)
+  message("git found: ${GIT_EXECUTABLE}")
+ELSE(GIT_FOUND)
+  MESSAGE(FATAL_ERROR "Looking for GIT - not found")
+endif(GIT_FOUND)
 
 find_program(LSB_RELEASE lsb_release)
 find_program(UNAME uname)
@@ -97,6 +105,8 @@ file(GLOB XRT_EULA
 install (FILES ${XRT_EULA} DESTINATION ${XRT_INSTALL_DIR}/license)
 message("-- XRT EA eula files ${XRT_EULA}")
 
+include (CMake/version.cmake)
+
 include (CMake/ccache.cmake)
 
 message("-- ${CMAKE_SYSTEM_INFO_FILE} (${LINUX_FLAVOR}) (Kernel ${LINUX_KERNEL_VERSION})")
@@ -118,3 +128,6 @@ include (CMake/icd.cmake)
 include (CMake/pkgconfig.cmake)
 
 include (CMake/coverity.cmake)
+
+set (CTAGS "${CMAKE_SOURCE_DIR}/runtime_src/tools/scripts/tags.sh")
+include (CMake/tags.cmake)
