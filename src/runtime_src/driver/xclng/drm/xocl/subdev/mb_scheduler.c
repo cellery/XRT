@@ -853,6 +853,8 @@ configure(struct xocl_cmd *xcmd)
 		exec->cq_interrupt = cfg->cq_int;
 		cfg->dsa52 = (dsa>=52) ? 1 : 0;
 		cfg->cdma = cdma ? 1 : 0;
+		/* reserve slot 0 for control commands */
+		exec->slot_status[0] = 1;
 	}
 	else {
 		SCHED_DEBUG("++ configuring penguin scheduler mode\n");
@@ -1568,8 +1570,9 @@ static int
 get_free_cu(struct xocl_cmd *xcmd)
 {
 	int mask_idx=0;
+	int num_masks = cu_masks(xcmd);
 	SCHED_DEBUG("-> get_free_cu\n");
-	for (mask_idx=0; mask_idx<xcmd->exec->num_cu_masks; ++mask_idx) {
+	for (mask_idx=0; mask_idx<num_masks; ++mask_idx) {
 		u32 cmd_mask = xcmd->packet->data[mask_idx]; /* skip header */
 		u32 busy_mask = xcmd->exec->cu_status[mask_idx];
 		int cu_idx = ffs_or_neg_one((cmd_mask | busy_mask) ^ busy_mask);

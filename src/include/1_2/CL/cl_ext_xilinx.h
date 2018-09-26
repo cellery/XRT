@@ -118,6 +118,14 @@ typedef struct cl_mem_ext_ptr_t {
 /* Additional cl_device_partition_property */
 #define CL_DEVICE_PARTITION_BY_CONNECTIVITY         (1 << 31)
 
+#ifdef CL_VERSION_1_0
+extern cl_int
+clSetCommandQueueProperty(cl_command_queue command_queue,
+                          cl_command_queue_properties properties,
+                          cl_bool enable,
+                          cl_command_queue_properties *old_properties);
+#endif
+
 /**
  * Aquire the device address associated with a cl_mem buffer on
  * a specific device.
@@ -208,10 +216,10 @@ typedef cl_uint             cl_stream_attributes;
  * Used in clReadStream() and clWriteStream()
  */
 typedef cl_uint             cl_stream_xfer_req;
-#define CL_STREAM_DEFAULT                           (1 << 0)
-#define CL_STREAM_EOT                               (1 << 1)
-#define CL_STREAM_CDH                               (1 << 2)
-#define CL_STREAM_NONBLOCKING                       (1 << 3)
+#define CL_STREAM_EOT                               (1 << 0)
+#define CL_STREAM_CDH                               (1 << 1)
+#define CL_STREAM_NONBLOCKING                       (1 << 2)
+#define CL_STREAM_SILENT                            (1 << 3)
 
 typedef struct _cl_stream *      cl_stream;
 typedef struct _cl_stream_mem *  cl_stream_mem;
