@@ -115,22 +115,22 @@ int main_(int argc, char** argv) {
   po::options_description desc("Options");
   desc.add_options()
       ("help,h", "Print help messages")
-      ("input,i", boost::program_options::value<std::string>(&sInputFile), "Input file name")
-      ("output,o", boost::program_options::value<std::string>(&sOutputFile), "Output file name")
-      ("verbose,v", boost::program_options::bool_switch(&bVerbose), "Display verbose/debug information")
-      ("validate", boost::program_options::bool_switch(&bValidateImage), "Validate xclbin image")
+      ("input,i", boost::program_options::value<std::string>(&sInputFile), "Input file name.")
+      ("output,o", boost::program_options::value<std::string>(&sOutputFile), "Output file name.")
+      ("verbose,v", boost::program_options::bool_switch(&bVerbose), "Display verbose/debug information.")
+      ("validate", boost::program_options::bool_switch(&bValidateImage), "Validate xclbin image.")
       ("migrate-forward", boost::program_options::bool_switch(&bMigrateForward), "Migrate the xclbin archive forward to the new binary format.")
-      ("remove-section", boost::program_options::value<std::vector<std::string> >(&sectionsToRemove)->multitoken(), "Section name to remove")
-      ("add-section", boost::program_options::value<std::vector<std::string> >(&sectionsToAdd)->multitoken(), "Section name to add.  Format: <section>:<format>:<file>")
-      ("dump-section", boost::program_options::value<std::vector<std::string> >(&sectionsToDump)->multitoken(), "Section to dump")
-      ("replace-section", boost::program_options::value<std::vector<std::string> >(&sectionToReplace)->multitoken(), "Section to replace")
-      ("key-value", boost::program_options::value<std::vector<std::string> >(&keyValuePairs)->multitoken(), "Key value pairs.  Format: [USER | SYS}:<key>:<value>")
+      ("remove-section", boost::program_options::value<std::vector<std::string> >(&sectionsToRemove)->multitoken(), "Section name to remove.")
+      ("add-section", boost::program_options::value<std::vector<std::string> >(&sectionsToAdd)->multitoken(), "Section name to add.  Format: <section>:[JSON|RAW]:<file>")
+      ("dump-section", boost::program_options::value<std::vector<std::string> >(&sectionsToDump)->multitoken(), "Section to dump. Format: <section>:[JSON|RAW|HTML]:<file>")
+      ("replace-section", boost::program_options::value<std::vector<std::string> >(&sectionToReplace)->multitoken(), "Section to replace. ")
+      ("key-value", boost::program_options::value<std::vector<std::string> >(&keyValuePairs)->multitoken(), "Key value pairs.  Format: [USER|SYS]:<key>:<value>")
 
-      ("info", boost::program_options::bool_switch(&bInfo), "Print Section Info")
-      ("list-names,n", boost::program_options::bool_switch(&bListNames), "List the available names")
-      ("list-sections,l", boost::program_options::bool_switch(&bListSections), "List the sections")
-      ("version", boost::program_options::bool_switch(&bVersion), "Version information regarding this executable")
-      ("force", boost::program_options::bool_switch(&bForce), "Forces an file overwrite")
+      ("info", boost::program_options::bool_switch(&bInfo), "Print Section Info.")
+      ("list-names", boost::program_options::bool_switch(&bListNames), "List the available section names.")
+      ("list-sections", boost::program_options::bool_switch(&bListSections), "List the sections.")
+      ("version", boost::program_options::bool_switch(&bVersion), "Version of this executable.")
+      ("force", boost::program_options::bool_switch(&bForce), "Forces a file overwrite.")
  ;
 
 // --remove-section=section
@@ -164,10 +164,20 @@ int main_(int argc, char** argv) {
   try {
     po::store(po::parse_command_line(argc, argv, all), vm); // Can throw
 
-    if (vm.count("help")) {
-      std::cout << "Command Line Options" << std::endl
-          << desc
-          << std::endl;
+    if ((vm.count("help")) ||
+        (argc == 1)) {
+      std::cout << "This utility operations on a xclbin produced by xocc." << std::endl << std::endl;
+      std::cout << "For example:" << std::endl;
+      std::cout << "  1) Reporting xclbin information  : xclbinutil --info --input binary_container_1.xclbin" << std::endl;
+      std::cout << "  2) Extracting the bitstream image: xclbinutil --dump-section BITSTREAM:RAW:bitstream.bit --input binary_container_1.xclbin" << std::endl;
+      std::cout << "  3) Extracting the build metadata : xclbinutil --dump-section BUILD_METADATA:HTML:buildMetadata.json --input binary_container_1.xclbin" << std::endl;
+      std::cout << "  4) Removing a section            : xclbinutil --remove-section BITSTREAM --input binary_container_1.xclbin --output binary_container_modified.xclbin" << std::endl;
+      std::cout << "  5) Checking xclbin integrity     : xclbinutil --validate --input binary_containter_1.xclbin" <<std::endl;
+
+      std::cout << std::endl 
+                << "Command Line Options" << std::endl
+                << desc
+                << std::endl;
       return RC_SUCCESS;
     }
 
@@ -185,23 +195,6 @@ int main_(int argc, char** argv) {
 
   if (bVersion) {
     xrt::version::print(std::cout);
-    return RC_SUCCESS;
-  }
-
-  if (argc == 1) {
-    std::cout << "This utility operations on a xclbin produced by xocc." << std::endl << std::endl;
-    std::cout << "For example:" << std::endl;
-    std::cout << "  1) Reporting xclbin information  : xclbinutil --info --input binary_container_1.xclbin" << std::endl;
-    std::cout << "  2) Extracting the bitstream image: xclbinutil --dump-section BITSTREAM:RAW:bitstream.bit --input binary_container_1.xclbin" << std::endl;
-    std::cout << "  3) Extracting the build metadata : xclbinutil --dump-section BUILD_METADATA:HTML:buildMetadata.json --input binary_container_1.xclbin" << std::endl;
-    std::cout << "  4) Removing a section            : xclbinutil --remove-section BITSTREAM --input binary_container_1.xclbin --output binary_container_modified.xclbin" << std::endl;
-    std::cout << "  5) Checking xclbin integrity     : xclbinutil --validate --input binary_containter_1.xclbin" <<std::endl;
-
-    std::cout << std::endl 
-              << "Command Line Options" << std::endl
-              << desc
-              << std::endl;
-
     return RC_SUCCESS;
   }
 
@@ -286,7 +279,12 @@ int main_(int argc, char** argv) {
 
   for (auto section : sectionsToDump) {
     ParameterSectionData psd(section);
-    xclBin.dumpSection(psd);
+    if (psd.getSectionName().empty() &&
+        psd.getFormatType() == Section::FT_JSON) {
+      xclBin.dumpSections(psd);
+    } else {
+      xclBin.dumpSection(psd);
+    }
   }
 
   if (!sOutputFile.empty()) {
@@ -297,10 +295,10 @@ int main_(int argc, char** argv) {
     xclBin.printSections(std::cout);
   }
 
-  if (bInfo) {
-    xclBin.printHeader(std::cout);
+  if (bInfo && !sInputFile.empty()) {
+    xclBin.reportInfo(std::cout, bVerbose);
   }
-
+  
   return RC_SUCCESS;
 }
 

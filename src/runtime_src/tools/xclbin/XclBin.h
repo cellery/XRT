@@ -40,7 +40,7 @@ class XclBin {
   virtual ~XclBin();
 
  public:
-  void printHeader(std::ostream &_ostream) const;
+  void reportInfo(std::ostream &_ostream, bool _bVerbose) const;
   void printSections(std::ostream &_ostream) const;
 
   void readXclBinBinary(const std::string &_binaryFileName, bool _bMigrate = false);
@@ -50,6 +50,7 @@ class XclBin {
   void addSections(ParameterSectionData &_PSD);
   void replaceSection(ParameterSectionData &_PSD);
   void dumpSection(ParameterSectionData &_PSD);
+  void dumpSections(ParameterSectionData &_PSD);
   void setKeyValue(const std::string & _keyValue);
 
  public:
