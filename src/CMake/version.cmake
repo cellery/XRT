@@ -1,16 +1,8 @@
-# Get the branch 
+# Get the branch
 execute_process(
   COMMAND ${GIT_EXECUTABLE} rev-parse --abbrev-ref HEAD
   WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
   OUTPUT_VARIABLE XRT_BRANCH
-  OUTPUT_STRIP_TRAILING_WHITESPACE
-)
-
-# Get the extended branch
-execute_process(
-  COMMAND ${GIT_EXECUTABLE} --no-pager describe --tags --always
-  WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-  OUTPUT_VARIABLE XRT_BRANCH_EXTENDED
   OUTPUT_STRIP_TRAILING_WHITESPACE
 )
 
@@ -33,7 +25,7 @@ execute_process(
 
 # Get all of the modified files in the current git environment
 execute_process(
-  COMMAND ${GIT_EXECUTABLE} status --porcelain
+  COMMAND ${GIT_EXECUTABLE} status --porcelain -u no
   WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
   OUTPUT_VARIABLE XRT_MODIFIED_FILES
   OUTPUT_STRIP_TRAILING_WHITESPACE
@@ -57,4 +49,19 @@ configure_file(
   ${CMAKE_BINARY_DIR}/gen/version.h
 )
 
+configure_file(
+  ${CMAKE_SOURCE_DIR}/CMake/config/version.json.in
+  ${CMAKE_BINARY_DIR}/gen/version.json
+)
+
 install(FILES ${CMAKE_BINARY_DIR}/gen/version.h DESTINATION ${XRT_INSTALL_DIR}/include)
+if (${XRT_NATIVE_BUILD} STREQUAL "yes")
+install(FILES ${CMAKE_BINARY_DIR}/gen/version.json DESTINATION ${XRT_INSTALL_DIR})
+endif()
+
+# This is not required on MPSoC platform. To avoid yocto error, do NOT intall
+if ((${XRT_NATIVE_BUILD} STREQUAL "yes") AND (NOT WIN32))
+  # Copied over from dkms.cmake. TODO: cleanup
+  set (XRT_DKMS_INSTALL_DIR "/usr/src/xrt-${XRT_VERSION_STRING}")
+  install(FILES ${CMAKE_BINARY_DIR}/gen/version.h DESTINATION ${XRT_DKMS_INSTALL_DIR}/driver/include)
+endif()
